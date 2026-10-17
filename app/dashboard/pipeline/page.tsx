@@ -10,6 +10,7 @@ import {
   MapPin, Star, GripVertical, Filter, ArrowRight, Users,
   ChevronRight, Eye
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 interface PipelineLead {
   id: string
@@ -100,6 +101,7 @@ export default function PipelinePage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Pipeline</h1>

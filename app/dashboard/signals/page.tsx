@@ -12,6 +12,7 @@ import {
   Search, Filter, ArrowUpRight, Clock, Building2, Users,
   Globe, AlertCircle, CheckCircle2, Loader2, Plus, Settings
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 interface Signal {
   id: string
@@ -78,6 +79,7 @@ export default function SignalsPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Intent Signals</h1>

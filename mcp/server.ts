@@ -26,16 +26,26 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 
 const API_URL = process.env.KEELEAD_API_URL || "http://localhost:3000"
+// Optional "user:password" for deployments behind HTTP Basic Auth (e.g. Traefik)
+const AUTH = process.env.KEELEAD_AUTH
 
 // Helper to call KeeLead API
 async function apiCall(path: string, method: string = "GET", body?: unknown) {
   try {
     const res = await fetch(`${API_URL}/api${path}`, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(AUTH ? { Authorization: `Basic ${Buffer.from(AUTH).toString("base64")}` } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     })
-    return res.json()
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      const detail = data && typeof data === "object" && "error" in data ? `: ${(data as { error: string }).error}` : ""
+      return { error: `API returned ${res.status} ${res.statusText}${detail}` }
+    }
+    return data
   } catch (err) {
     return { error: `API call failed: ${err instanceof Error ? err.message : String(err)}` }
   }
@@ -53,7 +63,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "keelead_search_leads",
-      description: "Search for business leads across 57 data sources using natural language. Supports searching by name, company, title, location, industry. Returns structured lead data with confidence scores.",
+      description: "Search for LOCAL BUSINESS leads (cafes, restaurants, shops, offices...) via OpenStreetMap, plus GitHub users and DuckDuckGo. Returns real name/phone/address/website where OpenStreetMap has them. Not suited to finding people by job title. Results are not saved until keelead_save_leads.",
       inputSchema: {
         type: "object",
         properties: {
@@ -78,77 +88,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "keelead_research_company",
-      description: "Deep research on a company: overview, tech stack, key people, funding history, competitors, news with sentiment analysis, social media presence.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Company name or domain to research" },
-        },
-        required: ["query"],
-      },
-    },
-    {
-      name: "keelead_find_contact",
-      description: "Find contact information for a specific person by name, company, title, or location.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Person's full name" },
-          company: { type: "string", description: "Company name" },
-          title: { type: "string", description: "Job title" },
-          location: { type: "string", description: "Location" },
-        },
-      },
-    },
-    {
-      name: "keelead_enrich_lead",
-      description: "Enrich a lead with additional data from multiple sources: email, phone, social profiles, firmographic, technographic data, email patterns.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          email: { type: "string", description: "Email to enrich" },
-          name: { type: "string", description: "Full name" },
-          company: { type: "string", description: "Company name" },
-          domain: { type: "string", description: "Company domain" },
-        },
-      },
-    },
-    {
-      name: "keelead_export_leads",
-      description: "Export leads to various formats (CSV, JSON, Excel, vCard, PDF). Supports templates for HubSpot/Salesforce import.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          format: { type: "string", enum: ["csv", "json", "xlsx", "vcard", "pdf"], description: "Export format" },
-          template: { type: "string", description: "Export template ID (e.g., 'leads-hubspot', 'leads-salesforce')" },
-          filters: {
-            type: "object",
-            properties: {
-              status: { type: "string" },
-              source: { type: "string" },
-              tags: { type: "array", items: { type: "string" } },
-            },
-          },
-        },
-        required: ["format"],
-      },
-    },
-    {
-      name: "keelead_get_signals",
-      description: "Get intent signals for a company: job changes, hiring news, funding events, product launches, social mentions.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          company: { type: "string", description: "Company name to get signals for" },
-          type: { type: "string", enum: ["job_change", "hiring", "funding", "news", "social", "product"], description: "Signal type filter" },
-        },
-        required: ["company"],
-      },
-    },
-    {
       name: "keelead_email_pattern",
-      description: "Find common email patterns for a domain. Returns common formats like first.last@, first@, f.last@, etc.",
+      description: "Generate candidate email addresses for a person at a domain (first.last@, first@, f.last@...). These are GUESSES, not confirmed addresses: run keelead_verify_email on them, and note SMTP-level confirmation is often impossible.",
       inputSchema: {
         type: "object",
         properties: {
@@ -161,7 +102,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "keelead_list_sources",
-      description: "List all 57 available data sources across 11 categories: search, professional, company, local, social, developer, startup, government, education, email, events.",
+      description: "List the data sources KeeLead has registered. Most of the 57 need third-party API keys or are not wired up; only OpenStreetMap, GitHub, DuckDuckGo and (with THREADS_ACCESS_TOKEN) Threads return real data through the search tools.",
       inputSchema: {
         type: "object",
         properties: {
@@ -171,30 +112,57 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "keelead_lead_score",
-      description: "AI-powered lead scoring (0-100) based on ICP fit, intent signals, engagement history, and firmographic data.",
+      name: "keelead_search_threads",
+      description: "Search public Threads posts by keyword through the official Threads API. Each result is a post author (username + profile URL + post text + permalink); Threads never exposes email or phone. Requires THREADS_ACCESS_TOKEN on the server. Results are NOT saved until keelead_save_leads is called.",
       inputSchema: {
         type: "object",
         properties: {
-          lead: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              company: { type: "string" },
-              industry: { type: "string" },
-              location: { type: "string" },
-            },
-          },
-          icp: {
-            type: "object",
-            description: "Ideal Customer Profile to score against",
-            properties: {
-              titles: { type: "array", items: { type: "string" } },
-              industries: { type: "array", items: { type: "string" } },
-              locations: { type: "array", items: { type: "string" } },
-            },
-          },
+          query: { type: "string", description: "Keyword(s) or tag to search, e.g. 'butuh jasa website'" },
+          limit: { type: "number", description: "Max posts (1-100, default 25)" },
+          searchType: { type: "string", enum: ["RECENT", "TOP"], description: "RECENT (default) or TOP" },
+          searchMode: { type: "string", enum: ["KEYWORD", "TAG"], description: "KEYWORD (default) or TAG" },
+          since: { type: "string", description: "Only posts after this date (Unix timestamp or YYYY-MM-DD)" },
+          until: { type: "string", description: "Only posts before this date" },
+          authorUsername: { type: "string", description: "Restrict to one author (no @)" },
         },
+        required: ["query"],
+      },
+    },
+    {
+      name: "keelead_save_leads",
+      description: "Save leads (e.g. from keelead_search_threads or keelead_search_leads) into the KeeLead database so they show up in the dashboard. Duplicates (same email, or same website/permalink) are skipped.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          leads: { type: "array", items: { type: "object" }, description: "Lead objects exactly as returned by the search tools (max 200)" },
+        },
+        required: ["leads"],
+      },
+    },
+    {
+      name: "keelead_list_saved_leads",
+      description: "List leads saved in the KeeLead database, optionally filtered.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["new", "contacted", "qualified", "converted", "lost"] },
+          source: { type: "string", description: "e.g. 'Threads'" },
+          q: { type: "string", description: "Free-text search" },
+          limit: { type: "number", description: "Default 100, max 500" },
+        },
+      },
+    },
+    {
+      name: "keelead_update_lead",
+      description: "Update a saved lead's status and/or notes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          status: { type: "string", enum: ["new", "contacted", "qualified", "converted", "lost"] },
+          notes: { type: "string" },
+        },
+        required: ["id"],
       },
     },
   ],
@@ -224,34 +192,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         })
         break
       }
-      case "keelead_research_company": {
-        result = await apiCall("/research", "POST", { query: args?.query })
-        break
-      }
-      case "keelead_find_contact": {
-        const query = `Find ${args?.name || "contact"} ${args?.company ? `at ${args.company}` : ""} ${args?.title || ""} ${args?.location ? `in ${args.location}` : ""}`
-        result = await apiCall("/leads", "POST", { query, count: 10 })
-        break
-      }
-      case "keelead_enrich_lead": {
-        result = await apiCall("/enrich", "POST", args)
-        break
-      }
-      case "keelead_export_leads": {
-        result = await apiCall("/export", "POST", {
-          format: args?.format,
-          template: args?.template,
-          filters: args?.filters,
-        })
-        break
-      }
-      case "keelead_get_signals": {
-        result = await apiCall("/signals", "POST", {
-          company: args?.company,
-          type: args?.type,
-        })
-        break
-      }
       case "keelead_email_pattern": {
         result = await apiCall("/enrich/patterns", "POST", args)
         break
@@ -260,8 +200,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await apiCall("/sources", "GET")
         break
       }
-      case "keelead_lead_score": {
-        result = await apiCall("/score", "POST", args)
+      case "keelead_search_threads": {
+        result = await apiCall("/threads/search", "POST", args)
+        break
+      }
+      case "keelead_save_leads": {
+        result = await apiCall("/leads/saved", "POST", { leads: args?.leads })
+        break
+      }
+      case "keelead_list_saved_leads": {
+        const qs = new URLSearchParams()
+        for (const key of ["status", "source", "q", "limit"]) {
+          if (args?.[key] !== undefined) qs.set(key, String(args[key]))
+        }
+        result = await apiCall(`/leads/saved?${qs}`, "GET")
+        break
+      }
+      case "keelead_update_lead": {
+        result = await apiCall("/leads/saved", "PATCH", args)
         break
       }
       default:

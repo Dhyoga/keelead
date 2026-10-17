@@ -8,6 +8,7 @@ import {
   Plus, MessageSquare, Download, Eye
 } from "lucide-react"
 import Link from "next/link"
+import { DemoBanner } from "@/components/demo-banner"
 
 export default function DashboardPage() {
   const stats = [
@@ -37,6 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>

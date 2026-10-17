@@ -13,6 +13,7 @@ import {
   Download, Upload, Plus, Search, Clock, Users, Mail,
   Ban, Eye, Trash2, RefreshCw, Globe, Lock, List, Scale
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 interface DncEntry {
   id: string
@@ -69,6 +70,7 @@ export default function CompliancePage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div>
         <h1 className="text-2xl font-bold">Compliance</h1>
         <p className="text-zinc-400 text-sm mt-1">GDPR, CAN-SPAM, DNC lists, opt-out management, and audit logs.</p>

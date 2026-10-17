@@ -13,6 +13,7 @@ import {
   Clock, Users, TrendingUp, ArrowRight, Sparkles, Send,
   BarChart3, Eye, MousePointerClick, Reply, Loader2, Wand2
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 interface SequenceStep {
   id: string
@@ -81,6 +82,7 @@ export default function SequencesPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Email Sequences</h1>

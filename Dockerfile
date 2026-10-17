@@ -9,6 +9,7 @@ RUN npm ci || npm install
 
 # Rebuild the source code only when needed
 FROM base AS builder
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -19,6 +20,7 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
+RUN apk add --no-cache openssl && npm install -g prisma@5.22.0
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
@@ -36,4 +38,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Push database schema and start
-CMD npx prisma db push --accept-loss-data && node server.js
+CMD prisma db push --skip-generate && node server.js

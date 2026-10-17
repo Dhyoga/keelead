@@ -1,16 +1,32 @@
-version: '3.8'
-
 services:
   keelead:
     build: .
-    ports:
-      - "3000:3000"
+    image: keelead:latest
+    restart: unless-stopped
+    networks:
+      - n8n-compose_default
     volumes:
       - keelead-data:/app/prisma
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:./prisma/keelead.db
-    restart: unless-stopped
+      - NEXT_PUBLIC_APP_URL=https://keelead.serdadu.dev
+      # Threads keyword search (see KEELEAD-GROKBOT.md); empty = Threads tool returns a clear error
+      - THREADS_ACCESS_TOKEN=${THREADS_ACCESS_TOKEN:-}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keelead.rule=Host(`keelead.serdadu.dev`)"
+      - "traefik.http.routers.keelead.entrypoints=web,websecure"
+      - "traefik.http.routers.keelead.tls=true"
+      - "traefik.http.routers.keelead.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.keelead.loadbalancer.server.port=3000"
+      # BasicAuth: the app has no login of its own.
+      - "traefik.http.middlewares.keelead-auth.basicauth.users=${BASIC_AUTH_USERS:?BASIC_AUTH_USERS is required}"
+      - "traefik.http.routers.keelead.middlewares=keelead-auth"
+
+networks:
+  n8n-compose_default:
+    external: true
 
 volumes:
   keelead-data:

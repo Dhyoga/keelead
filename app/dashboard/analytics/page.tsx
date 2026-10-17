@@ -11,6 +11,7 @@ import {
   Globe, Search, Building2, Github, MapPin, Calendar,
   Download, Filter, RefreshCw
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState("30d")
@@ -52,6 +53,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Analytics</h1>

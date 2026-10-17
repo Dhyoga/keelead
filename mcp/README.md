@@ -137,3 +137,4 @@ Eventbrite, Meetup, Luma, Conference Speakers
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `KEELEAD_API_URL` | `http://localhost:3000` | KeeLead API base URL |
+| `KEELEAD_AUTH` | _(unset)_ | `user:password` when the API sits behind HTTP Basic Auth |

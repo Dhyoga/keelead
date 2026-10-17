@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +40,14 @@ export default function SettingsPage() {
     email: true, browser: true, slack: false, discord: false,
   })
   const [proxy, setProxy] = useState({ enabled: false, url: "", rotation: false })
+  const [threadsConfigured, setThreadsConfigured] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => setThreadsConfigured(Boolean(d.integrations?.threads?.configured)))
+      .catch(() => setThreadsConfigured(null))
+  }, [])
 
   const toggleKeyVisibility = (id: string) => {
     const next = new Set(showKeys)
@@ -52,7 +60,14 @@ export default function SettingsPage() {
     setProviders((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p))
   }
 
-  const dataSources = [
+  const dataSources: {
+    name: string
+    category: string
+    enabled?: boolean
+    live?: boolean
+    unavailable?: boolean
+    note?: string
+  }[] = [
     { name: "Web Search", enabled: true, category: "search" },
     { name: "LinkedIn", enabled: true, category: "professional" },
     { name: "Company Websites", enabled: true, category: "corporate" },
@@ -63,6 +78,9 @@ export default function SettingsPage() {
     { name: "Yellow Pages", enabled: true, category: "directory" },
     { name: "Hunter.io", enabled: true, category: "email" },
     { name: "Twitter/X", enabled: true, category: "social" },
+    { name: "Threads", category: "social", live: true, note: "Official keyword search. Needs THREADS_ACCESS_TOKEN with threads_keyword_search approved by Meta." },
+    { name: "Instagram", category: "social", unavailable: true, note: "Not supported: no official API to search people or posts for leads." },
+    { name: "Facebook", category: "social", unavailable: true, note: "Not supported: no official API to search people or posts for leads." },
     { name: "AngelList", enabled: true, category: "startup" },
     { name: "Product Hunt", enabled: true, category: "startup" },
     { name: "Reddit", enabled: false, category: "social" },
@@ -214,12 +232,27 @@ export default function SettingsPage() {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {dataSources.map((source) => (
-                  <div key={source.name} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                  <div key={source.name} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
                     <div>
                       <p className="text-sm font-medium">{source.name}</p>
                       <p className="text-xs text-zinc-400 capitalize">{source.category}</p>
+                      {source.note && <p className="text-xs text-zinc-500 mt-1">{source.note}</p>}
                     </div>
-                    <Switch defaultChecked={source.enabled} />
+                    {source.live ? (
+                      <Badge
+                        className={`border-0 text-xs shrink-0 ${
+                          threadsConfigured ? "bg-emerald-500/20 text-emerald-400" : "bg-yellow-500/20 text-yellow-400"
+                        }`}
+                      >
+                        {threadsConfigured === null ? "Checking..." : threadsConfigured ? "Token set" : "Token missing"}
+                      </Badge>
+                    ) : source.unavailable ? (
+                      <Badge variant="outline" className="border-white/10 text-zinc-400 text-xs shrink-0">
+                        Not supported
+                      </Badge>
+                    ) : (
+                      <Switch defaultChecked={source.enabled} />
+                    )}
                   </div>
                 ))}
               </div>

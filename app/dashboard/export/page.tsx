@@ -9,6 +9,7 @@ import {
   Download, FileSpreadsheet, FileJson, FileText, User, File,
   Filter, ChevronDown, Loader2, CheckCircle2, Clock, Table
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 export default function ExportPage() {
   const [format, setFormat] = useState("csv")
@@ -68,6 +69,7 @@ export default function ExportPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner>Placeholder export: this does not export your saved leads yet.</DemoBanner>
       <div>
         <h1 className="text-2xl font-bold">Export Center</h1>
         <p className="text-zinc-400 text-sm mt-1">Export leads in CSV, JSON, Excel, vCard, or PDF format.</p>

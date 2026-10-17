@@ -39,3 +39,6 @@ prisma/keelead.db-journal
 
 # cli
 *.log
+
+# local deployment secrets
+.admin-pass

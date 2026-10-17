@@ -13,6 +13,7 @@ import {
   MapPin, Calendar, Linkedin, Twitter, Github, Briefcase,
   Shield, Award, Target, BarChart3
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 interface CompanyProfile {
   name: string
@@ -55,6 +56,7 @@ export default function ResearchPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner>Placeholder results: company research is not backed by a real data provider yet, so the output is generated and not factual.</DemoBanner>
       <div>
         <h1 className="text-2xl font-bold">Company Research</h1>
         <p className="text-zinc-400 text-sm mt-1">Deep dive into any company — overview, tech stack, people, funding, and more.</p>

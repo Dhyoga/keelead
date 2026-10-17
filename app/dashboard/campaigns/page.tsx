@@ -11,6 +11,7 @@ import {
   Plus, Megaphone, Users, Mail, TrendingUp, Pause, Play,
   MoreHorizontal, Target, BarChart3, Send
 } from "lucide-react"
+import { DemoBanner } from "@/components/demo-banner"
 
 interface Campaign {
   id: string
@@ -55,6 +56,7 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
+      <DemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Campaigns</h1>

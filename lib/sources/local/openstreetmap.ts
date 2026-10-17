@@ -4,7 +4,11 @@ import { BaseSource } from "../base"
 import type { Lead, SearchOptions, CompanyData, ContactData } from "../types"
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+// Public Overpass mirrors, tried in order (any one of them can be down or rate limiting)
+const OVERPASS_URLS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.openstreetmap.fr/api/interpreter",
+]
 const USER_AGENT = "KeeLead/1.0 (lead-generation-tool)"
 
 // Common business type mappings for smart query parsing
@@ -237,7 +241,7 @@ out center body;`
   way["name"~"${term}",i]["tourism"](${bbox});
   way["name"~"${term}",i]["leisure"](${bbox});
 );
-out center body;`);
+out center body;`
     }
 
     // No specific search — find all named businesses in area
@@ -261,23 +265,26 @@ out center body;`
    * Query Overpass API
    */
   private async queryOverpass(query: string): Promise<OverpassElement[]> {
-    try {
-      const res = await fetch(OVERPASS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": USER_AGENT,
-        },
-        body: `data=${encodeURIComponent(query)}`,
-      })
+    for (const url of OVERPASS_URLS) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": USER_AGENT,
+          },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: AbortSignal.timeout(20000),
+        })
+        if (!res.ok) continue
 
-      if (!res.ok) return []
-
-      const data = (await res.json()) as OverpassResponse
-      return data.elements || []
-    } catch {
-      return []
+        const data = (await res.json()) as OverpassResponse
+        return data.elements || []
+      } catch {
+        continue
+      }
     }
+    return []
   }
 
   /**
@@ -409,15 +416,16 @@ out center body;`
       // Fallback: try searching just the raw query as a location
       const fallback = await this.geocode(query)
       if (!fallback) return []
-      return this.searchWithGeo({ ...parsed, location: query }, fallback)
+      return this.searchWithGeo({ ...parsed, location: query }, fallback, options)
     }
 
-    return this.searchWithGeo(parsed, geoResult)
+    return this.searchWithGeo(parsed, geoResult, options)
   }
 
   private async searchWithGeo(
     parsed: ParsedQuery,
-    geo: NominatimResult
+    geo: NominatimResult,
+    options?: SearchOptions
   ): Promise<Lead[]> {
     // Step 2: Build bbox string (south,west,north,east)
     const [south, north, west, east] = geo.boundingbox

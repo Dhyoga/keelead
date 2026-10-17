@@ -16,6 +16,7 @@ export async function GET() {
       { name: "GitHub", enabled: true },
       { name: "Google Maps", enabled: true },
     ],
+    integrations: { threads: { configured: Boolean(process.env.THREADS_ACCESS_TOKEN) } },
     notifications: { email: true, browser: true, slack: false, discord: false },
     proxy: { enabled: false, url: "", rotation: false },
   })
