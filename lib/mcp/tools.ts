@@ -30,10 +30,12 @@ export function makeApiCall(baseUrl: string, auth?: string): ApiCall {
 }
 
 export const SERVER_INSTRUCTIONS = [
-  "KeeLead stores and verifies sales leads for Loox Travel (corporate gatherings, outbound, team building in Bandung/Lembang).",
-  "KeeLead has no LLM of its own: you do the judging and writing, KeeLead does the remembering.",
-  "Typical flow: find posts yourself -> keelead_save_leads (keep permalink in `website`, post text in `notes`) -> keelead_update_lead as status changes.",
-  "Never invent prices or availability. Never store login credentials. Replies to people need the owner's approval.",
+  "KeeLead is the bookkeeper for Loox Travel's lead hunting (corporate gatherings, outbound, team building in Bandung/Lembang).",
+  "It only records and remembers: it never sends, blocks, limits or approves anything. You decide what to do; KeeLead tells you what it remembers.",
+  "Flow: find posts yourself -> keelead_check_seen on their permalinks BEFORE judging them (skip the token cost of posts it already knows) ->",
+  "keelead_save_leads for the relevant ones (post permalink in `website`, post text in `notes`) -> after you reply on Threads, keelead_log_reply (with replyUrl).",
+  "If someone asks not to be contacted: keelead_save_leads (if not saved yet), then keelead_update_lead with status 'lost', addTags ['dnc'] and a note; keelead_check_seen will then show dnc:true for that author.",
+  "Never invent prices or availability. Never store login credentials.",
 ].join(" ")
 
 export const TOOLS = [
@@ -112,7 +114,7 @@ export const TOOLS = [
   {
     name: "keelead_save_leads",
     description:
-      "Save leads into the KeeLead database so they show up in the dashboard. Duplicates (same email, or same `website`) are skipped, so put the post permalink in `website` for social leads. Fields: firstName, lastName, email, phone, company, title, website, location, source, confidence (0-1), tags[], notes, metadata{}.",
+      "Save leads into the KeeLead database so they show up in the dashboard. Duplicates (same email, or same `website`) are skipped, so put the post permalink in `website` for social leads (for Threads, firstName = the username without @). Fields: firstName, lastName, email, phone, company, title, website, location, source, confidence (0-1), tags[], notes, metadata{}.",
     inputSchema: {
       type: "object",
       properties: {
@@ -136,20 +138,86 @@ export const TOOLS = [
   },
   {
     name: "keelead_update_lead",
-    description: "Update a saved lead's status and/or notes.",
+    description:
+      "Update a saved lead's status and/or notes, or add tags (addTags appends, never removes). To mark someone who asked not to be contacted: status 'lost', addTags ['dnc'], notes with the reason.",
     inputSchema: {
       type: "object",
       properties: {
         id: { type: "string" },
         status: { type: "string", enum: ["new", "contacted", "qualified", "converted", "lost"] },
         notes: { type: "string" },
+        addTags: { type: "array", items: { type: "string" }, description: "Tags to add, e.g. ['dnc']" },
       },
       required: ["id"],
     },
   },
+  {
+    name: "keelead_check_seen",
+    description:
+      "Ask what KeeLead remembers about up to 100 post permalinks, in one cheap call. Returns { new: [...inputs KeeLead knows nothing about], known: [{ input, lead?, replies?, authorLastRepliedAt?, dnc? }] }. Information only: KeeLead never says skip or don't. Call this BEFORE spending tokens judging posts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        posts: { type: "array", items: { type: "string" }, description: "Post permalinks, e.g. https://www.threads.com/@user/post/ABC123 (1-100)" },
+      },
+      required: ["posts"],
+    },
+  },
+  {
+    name: "keelead_log_reply",
+    description:
+      "Record a reply you made (or drafted) on a post. Always succeeds for valid input, even if the post/account was replied to before; the response says how many other records exist. Status defaults to 'sent' (then the linked lead goes new -> contacted). Fields: postUrl, text, status (draft|sent|failed), replyUrl, note, leadId, sentAt.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postUrl: { type: "string", description: "Permalink of the post you replied to" },
+        text: { type: "string", description: "The reply text" },
+        status: { type: "string", enum: ["draft", "sent", "failed"], description: "Default 'sent'" },
+        replyUrl: { type: "string", description: "Link to your reply, if you have it" },
+        note: { type: "string" },
+        leadId: { type: "string", description: "Optional; found automatically from the permalink when the post was saved as a lead" },
+        sentAt: { type: "string", description: "ISO time; defaults to now for 'sent'" },
+      },
+      required: ["postUrl", "text"],
+    },
+  },
+  {
+    name: "keelead_update_reply",
+    description:
+      "Correct a logged reply: status (draft|sent|failed, any change allowed), text, replyUrl, note, sentAt. Setting 'sent' fills sentAt if empty and moves a 'new' lead to 'contacted'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Reply id from keelead_log_reply / keelead_list_replies" },
+        status: { type: "string", enum: ["draft", "sent", "failed"] },
+        text: { type: "string" },
+        replyUrl: { type: "string" },
+        note: { type: "string" },
+        sentAt: { type: "string" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "keelead_list_replies",
+    description: "List logged replies, newest first. Filters: status, username (no @), limit (default 50, max 200).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["draft", "sent", "failed"] },
+        username: { type: "string" },
+        limit: { type: "number" },
+      },
+    },
+  },
 ]
 
-export async function callTool(name: string, args: Record<string, unknown> | undefined, api: ApiCall): Promise<unknown> {
+export async function callTool(
+  name: string,
+  args: Record<string, unknown> | undefined,
+  api: ApiCall,
+  client = "api"
+): Promise<unknown> {
   switch (name) {
     case "keelead_search_leads":
       return api("/leads", "POST", {
@@ -177,7 +245,23 @@ export async function callTool(name: string, args: Record<string, unknown> | und
       return api(`/leads/saved?${qs}`, "GET")
     }
     case "keelead_update_lead":
-      return api("/leads/saved", "PATCH", args)
+      // Only these fields: `tags` (replace-all) stays REST-only so an agent cannot wipe a lead's tags by accident
+      return api("/leads/saved", "PATCH", { id: args?.id, status: args?.status, notes: args?.notes, addTags: args?.addTags })
+    case "keelead_check_seen":
+      return api("/seen", "POST", { posts: args?.posts })
+    case "keelead_log_reply":
+      return api("/replies", "POST", { ...args, client })
+    case "keelead_update_reply": {
+      const { id, ...patch } = args ?? {}
+      return api(`/replies/${encodeURIComponent(String(id ?? ""))}`, "PATCH", patch)
+    }
+    case "keelead_list_replies": {
+      const qs = new URLSearchParams()
+      for (const key of ["status", "username", "limit"]) {
+        if (args?.[key] !== undefined) qs.set(key, String(args[key]))
+      }
+      return api(`/replies?${qs}`, "GET")
+    }
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
@@ -196,7 +280,7 @@ export function createKeeleadServer(api: ApiCall, client: string): Server {
     const { name, arguments: args } = request.params
     console.log(JSON.stringify({ event: "mcp_tool_call", client, tool: name, at: new Date().toISOString() }))
     try {
-      const result = await callTool(name, args, api)
+      const result = await callTool(name, args, api, client)
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }
     } catch (error) {
       return {

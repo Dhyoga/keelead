@@ -54,12 +54,24 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    // addTags appends to the existing tags (no duplicates, nothing removed); tags replaces them all
+    let tags: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
+    if (Array.isArray(body.addTags)) {
+      const current = await prisma.lead.findUnique({ where: { id: body.id }, select: { tags: true } })
+      if (!current) return NextResponse.json({ error: "lead not found" }, { status: 404 })
+      let existing: string[] = []
+      try {
+        const parsed = JSON.parse(current.tags || "[]")
+        if (Array.isArray(parsed)) existing = parsed.map(String)
+      } catch {}
+      tags = Array.from(new Set([...(tags ?? existing), ...body.addTags.map(String)]))
+    }
     const row = await prisma.lead.update({
       where: { id: body.id },
       data: {
         ...(body.status !== undefined ? { status: body.status } : {}),
         ...(body.notes !== undefined ? { notes: body.notes } : {}),
-        ...(Array.isArray(body.tags) ? { tags: JSON.stringify(body.tags) } : {}),
+        ...(tags ? { tags: JSON.stringify(tags) } : {}),
       },
     })
     return NextResponse.json({ lead: toSavedLead(row) })

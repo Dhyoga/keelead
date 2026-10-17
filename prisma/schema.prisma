@@ -98,3 +98,24 @@ model Setting {
   key   String @unique
   value String // JSON value
 }
+
+// Bookkeeping of replies an agent (Grokbot, Hermes) made on Threads. KeeLead only records; it never sends or blocks.
+model Reply {
+  id             String    @id @default(cuid())
+  postKey        String    // normalized post identity, e.g. "threads:ABC123" (see lib/replies/postkey.ts)
+  postUrl        String
+  targetUsername String    // lower-case, no "@"
+  leadId         String?   // plain reference to Lead.id (no FK, so Lead stays untouched)
+  text           String
+  status         String    @default("sent") // draft, sent, failed
+  sentAt         DateTime?
+  replyUrl       String?
+  note           String?
+  client         String    @default("api")  // MCP client that logged it
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([postKey])
+  @@index([targetUsername])
+  @@index([sentAt])
+}

@@ -79,7 +79,8 @@ docker logs --tail 50 keelead-keelead-1
 Aturan deploy:
 - Jangan `docker compose down -v` (menghapus volume `keelead-data` = menghapus semua lead).
 - Jangan commit `.env`, `.admin-pass`, token, atau hash BasicAuth. `.gitignore` sudah menutup `.env` dan `.admin-pass`.
-- Server memiliki commit sendiri (`d4719e7`) yang juga ada di repo lokal; selalu `git pull`/cek `git log` sebelum menimpa.
+- Server memakai branch `serdadu-deploy` dari remote `fork` (https://github.com/Dhyoga/keelead); remote `origin` di server menunjuk upstream Atum246. Alur deploy: push ke `fork/serdadu-deploy` → di server `git fetch fork && git merge --ff-only fork/serdadu-deploy` → `docker compose up -d --build`.
+- Backup DB sebelum deploy: `docker run --rm -v keelead_keelead-data:/d -v ~/backups:/b alpine cp /d/keelead.db /b/keelead.db.$(date +%Y%m%d-%H%M)` (backup terakhir: `~/backups/keelead.db.20261018-0001`).
 
 ---
 
@@ -96,7 +97,7 @@ Legenda: ✅ nyata dan berfungsi · ⚠️ nyata tapi terbatas/belum diuji · �
 | Pola email (`/api/enrich/patterns`) | ⚠️ | Hanya tebakan kandidat. |
 | **Threads keyword search** (`/api/threads/search`) | ⚠️ | Kode ada, **belum pernah diuji**, token server kosong, butuh App Review Meta. |
 | **Balas komentar di Threads** | 🚫 | **Belum ada.** Ini masalah utama saat ini (lihat bagian 6). |
-| **Endpoint MCP lewat HTTP** (`/api/mcp`) | ⚠️ | Dibuat dan lolos uji curl lokal; **belum di-deploy**, belum diuji dengan Grokbot/Hermes (bagian 5.1). |
+| **Endpoint MCP lewat HTTP** (`/api/mcp`) | ⚠️ | **Sudah di-deploy** (2026-10-18) dan lolos uji curl lewat domain publik; belum diuji dengan Grokbot/Hermes (bagian 5.1). |
 | Research perusahaan, enrich, signals, score, export | ❌ | Mengarang data (skor selalu 50, dst.). Sudah dicabut dari MCP. **Jangan dipakai & jangan dihubungkan ke SDR sebelum diganti implementasi nyata.** |
 | Campaigns, analytics, pipeline, sequences, compliance (dashboard) | ❌ | Mockup/data statis; diberi banner "Demo data". |
 | Chat / agents di dalam KeeLead | ❌ | Butuh API key AI; tidak dipakai. |
@@ -116,14 +117,15 @@ Untuk lead Threads: `firstName = username`, `website = permalink post`, `metadat
 
 ## 5. Antarmuka untuk agent
 
-### 5.1 MCP lewat HTTP — SUDAH DIBUAT (belum di-deploy ke server per 2026-10-17)
+### 5.1 MCP lewat HTTP — SUDAH DI-DEPLOY (2026-10-18, branch `serdadu-deploy`, commit `ca6f78a`)
 
 - Endpoint: `POST https://keelead.serdadu.dev/api/mcp` (Streamable HTTP, **stateless**, balasan JSON). `GET`/`DELETE` dijawab 405 (tidak ada sesi/stream).
 - Kode: `app/api/mcp/route.ts` (endpoint), `lib/mcp/auth.ts` (bearer token), `lib/mcp/tools.ts` (**satu-satunya definisi tool**, dipakai HTTP dan stdio).
 - **Auth:** header `Authorization: Bearer <token>`. Token per klien di env `MCP_TOKENS="grokbot:<token>,hermes:<token>"` (minimal 24 karakter; buat dengan `openssl rand -hex 24`). `MCP_TOKENS` kosong = endpoint mati (503). Token salah/hilang = 401.
 - **Traefik:** path `/api/mcp` punya router sendiri (`keelead-mcp`, priority 100) yang **melewati BasicAuth**; seluruh sisanya tetap di balik BasicAuth. Artinya bearer token adalah **satu-satunya** pengaman endpoint ini — jaga kerahasiaannya, cabut dengan menghapus entrinya dari `MCP_TOKENS` lalu `docker compose up -d`.
 - **Audit:** setiap pemanggilan tool mencatat baris JSON `{"event":"mcp_tool_call","client":...,"tool":...}` di log container (`docker logs keelead-keelead-1`). Audit ke database belum ada.
-- Diuji lokal 2026-10-17 dengan curl: tanpa token → 401, token salah → 401, `initialize`, `tools/list`, `tools/call` (`list_saved_leads`, `save_leads` + dedup) → OK; `npm run build` lolos. **Belum diuji dengan klien MCP nyata (Grokbot/Hermes).**
+- Token `grokbot` dan `hermes` dibuat di `~/keelead/.env` server (`MCP_TOKENS`, mode 600). Ambil token dengan `ssh` ke server; jangan menempelkannya ke chat, repo, atau log.
+- Diuji lokal dan di server (2026-10-18) dengan curl: tanpa token → 401, token salah → 401, `initialize`, `tools/list`, `tools/call` (`list_saved_leads`, `save_leads` + dedup) → OK; `npm run build` lolos. Dashboard dan `/api/*` lain tetap 401 tanpa BasicAuth. **Belum diuji dengan klien MCP nyata (Grokbot/Hermes).**
 
 Tool yang tersedia: `keelead_search_leads`, `keelead_verify_email`, `keelead_email_pattern`, `keelead_list_sources`, `keelead_search_threads`, `keelead_save_leads`, `keelead_list_saved_leads`, `keelead_update_lead`. Resource & prompt lama yang merujuk fitur palsu sudah dihapus.
 
@@ -182,7 +184,7 @@ Konsekuensi (wajib dipahami semua agent):
 - Rute `/api/threads/search` (API resmi) tetap dipertahankan sebagai jalur masa depan, tapi **bukan** jalur utama sampai token + App Review beres. Ajukan App Review tetap berjalan paralel.
 
 Pekerjaan KeeLead untuk jalur ini (tidak bergantung pada Meta):
-- [x] Endpoint MCP lewat HTTP (`/api/mcp`, bearer token) sebagai custom connector Grokbot/Hermes — kode selesai, **tinggal deploy + uji dengan Grokbot** (bagian 5.1).
+- [x] Endpoint MCP lewat HTTP (`/api/mcp`, bearer token) sebagai custom connector Grokbot/Hermes — selesai dan ter-deploy; **tinggal uji dengan Grokbot** (bagian 5.1).
 - [ ] `check_seen`: terima daftar permalink/id post, kembalikan mana yang belum pernah disimpan/dibalas.
 - [ ] Catatan balasan terstruktur (draf, status, waktu, link balasan) + guardrail server (batas harian, tidak membalas akun yang sama dalam N hari, Do-Not-Contact).
 - [ ] Kueri pencarian tersimpan + metrik kueri mana yang menghasilkan lead relevan.
