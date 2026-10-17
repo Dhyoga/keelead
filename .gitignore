@@ -42,3 +42,4 @@ prisma/keelead.db-journal
 
 # local deployment secrets
 .admin-pass
+.claude

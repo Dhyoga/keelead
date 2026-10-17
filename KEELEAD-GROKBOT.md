@@ -71,30 +71,9 @@ API yang dipakai: `GET https://graph.threads.net/v1.0/keyword_search` (resmi dar
 
 Alur yang disarankan untuk bot: `search_threads` -> bot menyaring postingan yang relevan -> `save_leads` -> Anda meninjau di https://keelead.serdadu.dev/dashboard/leads -> `update_lead` saat status berubah.
 
-## 5. Pasang di laptop
+## 5. Menyambungkan agent
 
-```bash
-mkdir keelead-mcp && cd keelead-mcp
-scp ubuntu@43.157.229.232:~/keelead/mcp/server.ts .
-npm init -y && npm i @modelcontextprotocol/sdk tsx
-```
-
-```json
-{
-  "mcpServers": {
-    "keelead": {
-      "command": "npx",
-      "args": ["tsx", "/path/ke/keelead-mcp/server.ts"],
-      "env": {
-        "KEELEAD_API_URL": "https://keelead.serdadu.dev",
-        "KEELEAD_AUTH": "admin:<password dari ~/keelead/.admin-pass>"
-      }
-    }
-  }
-}
-```
-
-Setelah `server.ts` di server berubah, salin ulang ke laptop.
+Sejak 2026-10-17 agent jarak jauh memakai **MCP lewat HTTP** (`https://keelead.serdadu.dev/api/mcp`, header `Authorization: Bearer <token>`), bukan stdio di laptop. Detail dan status deploy: lihat `AGENTS.md` bagian 5.1.
 
 ## 6. Belum dikerjakan
 
