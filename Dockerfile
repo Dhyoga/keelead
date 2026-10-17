@@ -25,6 +25,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+# The keelead-data volume is mounted over /app/prisma and hides the schema shipped in this image,
+# so keep a copy outside the volume and refresh the volume's schema on every start.
+COPY --from=builder /app/prisma/schema.prisma ./schema.prisma.image
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
@@ -37,5 +40,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Push database schema and start
-CMD prisma db push --skip-generate && node server.js
+# Refresh the schema in the volume, push it to the database, and start
+CMD cp -f /app/schema.prisma.image prisma/schema.prisma && prisma db push --skip-generate && node server.js

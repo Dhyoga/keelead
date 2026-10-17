@@ -39,11 +39,13 @@
 
 ## 7. Deploy
 
-- [ ] 7.1 Commit dan push ke `fork/serdadu-deploy` (pemilik); pastikan folder change `openspec/` ikut ter-commit
-- [ ] 7.2 Backup `keelead.db` di server (perintah di `AGENTS.md` bagian 3)
-- [ ] 7.3 Di server: `git fetch fork && git merge --ff-only fork/serdadu-deploy`, lalu `docker compose up -d --build` di `~/keelead`; pastikan container lain tidak tersentuh
-- [ ] 7.4 Verifikasi di server: tabel `Reply` terbuat, jumlah lead lama tidak berubah, dashboard dan `/api/*` tetap 401 tanpa BasicAuth, `/api/mcp` 401 tanpa token
-- [ ] 7.5 Jalankan alur inti `scripts/smoke-replies.mjs` melawan `https://keelead.serdadu.dev` lewat `/api/mcp` dengan token `grokbot`, lalu hapus data uji (lead dan reply uji) agar pembukuan asli tidak tercemar
+- [x] 7.1 Commit dan push ke `fork/serdadu-deploy` (pemilik); pastikan folder change `openspec/` ikut ter-commit
+- [x] 7.2 Backup `keelead.db` di server (perintah di `AGENTS.md` bagian 3)
+- [x] 7.3 Di server: `git fetch fork && git merge --ff-only fork/serdadu-deploy`, lalu `docker compose up -d --build` di `~/keelead`; pastikan container lain tidak tersentuh
+- [x] 7.4 Verifikasi di server (tabel `Reply` baru terbuat setelah perbaikan manual schema di volume, lihat 7.6): jumlah lead lama tidak berubah, dashboard dan `/api/*` tetap 401 tanpa BasicAuth, `/api/mcp` 401 tanpa token
+- [x] 7.5 Jalankan alur inti `scripts/smoke-replies.mjs` melawan `https://keelead.serdadu.dev` lewat `/api/mcp` dengan token `grokbot`, lalu hapus data uji (lead dan reply uji) agar pembukuan asli tidak tercemar
+
+- [ ] 7.6 Perbaiki bug deploy yang ditemukan di 7.4: volume `keelead-data` menutupi `schema.prisma` terbaru sehingga `prisma db push` memakai schema lama. Dockerfile menyimpan salinan schema di luar volume dan menimpanya saat start (`cp -f`); uji lokal dengan volume berisi schema lama, lalu commit, push, dan deploy ulang dengan backup (perbaikan manual sekali jalan sudah dilakukan di server)
 
 ## 8. Uji end-to-end dengan Grokbot nyata
 

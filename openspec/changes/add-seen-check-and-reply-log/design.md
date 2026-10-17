@@ -65,7 +65,7 @@ Orang yang menolak disimpan sebagai lead (`keelead_save_leads`), lalu `keelead_u
 
 ## Migration Plan
 
-1. Tambah model `Reply` di `prisma/schema.prisma` (hanya tambahan); `prisma db push` saat container start membuat tabelnya tanpa menyentuh data.
+1. Tambah model `Reply` di `prisma/schema.prisma` (hanya tambahan); `prisma db push` saat container start membuat tabelnya tanpa menyentuh data. **Catatan (ditemukan saat deploy):** volume `keelead-data` dipasang di `/app/prisma` dan menutupi `schema.prisma` dari image, jadi `db push` memakai schema lama; Dockerfile harus menimpa schema di volume dengan salinan dari image saat start.
 2. Backup `keelead.db` sebelum deploy (perintah di `AGENTS.md` bagian 3).
 3. Deploy: push ke `fork/serdadu-deploy` → di server `git fetch fork && git merge --ff-only fork/serdadu-deploy` → `docker compose up -d --build`.
 4. Uji end-to-end dengan Grokbot nyata (token `grokbot` di `~/keelead/.env`).
