@@ -45,7 +45,7 @@
 - [x] 7.4 Verifikasi di server (tabel `Reply` baru terbuat setelah perbaikan manual schema di volume, lihat 7.6): jumlah lead lama tidak berubah, dashboard dan `/api/*` tetap 401 tanpa BasicAuth, `/api/mcp` 401 tanpa token
 - [x] 7.5 Jalankan alur inti `scripts/smoke-replies.mjs` melawan `https://keelead.serdadu.dev` lewat `/api/mcp` dengan token `grokbot`, lalu hapus data uji (lead dan reply uji) agar pembukuan asli tidak tercemar
 
-- [ ] 7.6 Perbaiki bug deploy yang ditemukan di 7.4: volume `keelead-data` menutupi `schema.prisma` terbaru sehingga `prisma db push` memakai schema lama. Dockerfile menyimpan salinan schema di luar volume dan menimpanya saat start (`cp -f`); uji lokal dengan volume berisi schema lama, lalu commit, push, dan deploy ulang dengan backup (perbaikan manual sekali jalan sudah dilakukan di server)
+- [x] 7.6 Perbaiki bug deploy yang ditemukan di 7.4: volume `keelead-data` menutupi `schema.prisma` terbaru sehingga `prisma db push` memakai schema lama. Dockerfile menyimpan salinan schema di luar volume dan menimpanya saat start (`cp -f`); uji lokal dengan volume berisi schema lama (**sudah lolos**: schema di volume otomatis diperbarui, juga bila file milik root), lalu commit, push, dan deploy ulang dengan backup (perbaikan manual sekali jalan sudah dilakukan di server; commit `6de2a45` sudah di-deploy dan diverifikasi 2026-10-18: 401 tanpa auth, skrip uji 34/34 lolos, data produksi bersih)
 
 ## 8. Uji end-to-end dengan Grokbot nyata
 
@@ -58,6 +58,6 @@
 
 ## 9. Dokumentasi
 
-- [ ] 9.1 Perbarui `AGENTS.md`: tabel status (bagian 4), daftar tool + alur (bagian 5.1), checklist "Jalur sementara" dan Fase 2 (bagian 6) agar tidak lagi menyebut guardrail/persetujuan/claim sebagai fitur KeeLead, dan bagian 7 agar menyatakan bahwa persetujuan, batas volume, dan risiko akun adalah tanggung jawab agent/pemilik, bukan KeeLead; perbarui log keputusan (keputusan "KeeLead = sekretaris pencatat", 2026-10-18)
-- [ ] 9.2 Perbarui `KEELEAD-GROKBOT.md` bagian 4 (tool MCP) dan alur yang disarankan untuk bot
+- [x] 9.1 Perbarui `AGENTS.md`: tabel status (bagian 4), daftar tool + alur (bagian 5.1), checklist "Jalur sementara" dan Fase 2 (bagian 6) agar tidak lagi menyebut guardrail/persetujuan/claim sebagai fitur KeeLead, dan bagian 7 agar menyatakan bahwa persetujuan, batas volume, dan risiko akun adalah tanggung jawab agent/pemilik, bukan KeeLead; perbarui log keputusan (keputusan "KeeLead = sekretaris pencatat", 2026-10-18)
+- [x] 9.2 Perbarui `KEELEAD-GROKBOT.md` bagian 4 (tool MCP) dan alur yang disarankan untuk bot
 - [ ] 9.3 Arsipkan change dengan `/opsx:archive` setelah semua uji lolos

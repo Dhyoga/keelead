@@ -58,18 +58,21 @@ API yang dipakai: `GET https://graph.threads.net/v1.0/keyword_search` (resmi dar
 
 ## 4. Tool MCP yang tersedia sekarang
 
+Daftar lengkap dan protokolnya ada di `AGENTS.md` bagian 5.1 (12 tool). Yang paling relevan untuk bot:
+
 | Tool | Fungsi |
 |---|---|
-| `keelead_search_threads` | Cari post publik di Threads (butuh token + App Review) |
-| `keelead_search_leads` | Cari bisnis lokal (OpenStreetMap) |
-| `keelead_verify_email` | Verifikasi email |
-| `keelead_email_pattern` | Kandidat alamat email (tebakan) |
-| `keelead_save_leads` | Simpan hasil pencarian ke database |
-| `keelead_list_saved_leads` | Lihat lead tersimpan (filter status/sumber/teks) |
-| `keelead_update_lead` | Ubah status / catatan lead |
-| `keelead_list_sources` | Daftar source terdaftar (banyak yang tidak tersambung) |
+| `keelead_check_seen` | Tanya apa yang diingat KeeLead tentang daftar permalink (lead, balasan, `dnc`). Panggil sebelum menilai post. |
+| `keelead_save_leads` | Simpan lead (permalink di `website`, teks post di `notes`, `firstName` = username). |
+| `keelead_log_reply` / `keelead_update_reply` / `keelead_list_replies` | Catat balasan yang dikirim, koreksi, dan lihat riwayat. |
+| `keelead_update_lead` | Ubah status/catatan; `addTags: ["dnc"]` + status `lost` untuk yang menolak. |
+| `keelead_list_saved_leads` | Lihat lead tersimpan. |
+| `keelead_search_leads`, `keelead_verify_email`, `keelead_email_pattern` | Pencarian lokal (OSM), verifikasi email, tebakan email. |
+| `keelead_search_threads` | Hanya jika `THREADS_ACCESS_TOKEN` + App Review ada; kalau tidak, 503. |
 
-Alur yang disarankan untuk bot: `search_threads` -> bot menyaring postingan yang relevan -> `save_leads` -> Anda meninjau di https://keelead.serdadu.dev/dashboard/leads -> `update_lead` saat status berubah.
+KeeLead hanya mencatat dan mengingat. Ia tidak mengirim, tidak menyetujui, dan tidak melarang apa pun; keputusan ada pada bot dan pemilik.
+
+Alur yang disarankan: cari post sendiri -> `check_seen` -> nilai yang baru -> `save_leads` -> balas di Threads -> `log_reply` -> Anda meninjau di https://keelead.serdadu.dev/dashboard/leads.
 
 ## 5. Menyambungkan agent
 
